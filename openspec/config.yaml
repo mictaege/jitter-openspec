@@ -1,32 +1,35 @@
 schema: spec-driven
 
-# Project context (optional)
-# Add only constraints that should guide OpenSpec artifacts and workflows.
-# Include constraints an agent cannot infer by reading the code.
-# Keep general project documentation and discoverable codebase facts out.
-# Example:
-#   context: |
-#     Designs and tasks must cover Windows, macOS, and Linux
-#     Write all artifacts in Spanish
+context: |
+  Store for the jitter family — four GitHub repos under github.com/mictaege that build and
+  release variants ("flavours") of one application from a single source base:
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always state what is out of scope
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+    - ~/projects/jitter-api       public annotation API (@OnlyIf/@Fork/@Alter/@AlterConstValue/
+                                  @InlinedConstantApproved/Tags), Java, dependency-free, published to
+                                  Maven Central as io.github.mictaege:jitter-api
+    - ~/projects/jitter-plugin    Gradle plugin that strips flavour-specific code from compiled
+                                  classes (ASM), verifies dangling references, dejitters sources and
+                                  resolves flavour gates in XML resources; mixed Groovy/Java,
+                                  published to the Gradle Plugin Portal + Maven Central
+    - ~/projects/jitter           schema repo: hosts jitter-gate.xsd (the jitter:onlyIf/jitter:set
+                                  gate vocabulary) at https://mictaege.github.io/jitter via GitHub
+                                  Pages; source of truth lives in jitter-plugin's resources
+    - ~/projects/eval.jitter      reference demo consumer (JavaFX app, flavours ESA/NASA/ROSKOSMOS),
+                                  Groovy DSL; NOT published; composite-builds ../jitter-api and
+                                  ../jitter-plugin via includeBuild
 
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+  Shared conventions (also in ~/.vibe/AGENTS.md and each repo's AGENTS.md / openspec context):
+  - Build/test only via each repo's Gradle wrapper (./gradlew); JUnit Jupiter for tests;
+    package roots com.github...; license Apache-2.0 everywhere.
+  - jitter-api is the compatibility-sensitive leaf: jitter-plugin and consumers read its
+    annotations; changes must be additive/backward compatible and version-bumped in coordination.
+  - Publishing via org.jreleaser (Maven Central, io.github.mictaege) and com.gradle.plugin-publish
+    (portal); credentials from Gradle properties/env only, never committed.
+  - Releases are done by the author; jitter-plugin docs/bytecode_stripping.md records design
+    decisions (now openspec specs) — change them together with the code.
+
+  How to work with this store: run OpenSpec commands with `--store jitter` for family-wide
+  planning (e.g. `openspec list --store jitter`, `openspec new change <id> --store jitter`,
+  `openspec doctor --store jitter`). Per-repo roots stay authoritative for repo-local work;
+  cross-repo features get a same-named change in each affected repo (or in this store).
+  Family architecture: openspec/specs/family/spec.md. Remote: mictaege/jitter-openspec.
