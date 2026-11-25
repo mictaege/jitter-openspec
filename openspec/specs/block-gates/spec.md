@@ -78,3 +78,65 @@ reference, consistent with the existing metadata-rewrite rules for removed decla
 - **WHEN** a Kotlin class contains a gated lambda and is stripped
 - **THEN** `@kotlin.Metadata` of the surviving class no longer references the removed synthetic
   lambda function, and verification of the metadata passes
+
+### Requirement: Stripping removes nested lambda bodies of a removed gate block
+
+When a `Gate.onlyIf` block is removed for the active flavour, the stripping SHALL also remove
+every synthetic lambda method that the removed block's lambda body references through further
+`invokedynamic` instructions, transitively (lambdas nested at any depth inside the gated block).
+
+#### Scenario: Nested lambda inside a removed gate block
+- **WHEN** a gated block contains a nested lambda whose body references a class that is
+  `@OnlyIf`-stripped in the active flavour
+- **THEN** the stripped class contains neither the nested synthetic lambda method nor any
+  dangling reference to the removed class, and verification passes
+
+### Requirement: Stripping removes gate-local anonymous classes
+
+When a removed `Gate.onlyIf` block instantiates an anonymous (inner) class of the enclosing
+top-level class, and no surviving bytecode references that anonymous class anymore, the stripping
+SHALL remove the anonymous class as a whole (recorded in the removal manifest). If surviving code
+still references it, the class SHALL be kept.
+
+#### Scenario: Anonymous class created only inside a removed gate block
+- **WHEN** a gated block contains `new SomeAnonymous() { ... }` whose method body references a
+  member removed in the active flavour, and nothing outside the gate references the anonymous
+  class
+- **THEN** the anonymous class file is removed and verification passes
+
+#### Scenario: Anonymous class still referenced from surviving code
+- **WHEN** an anonymous class instantiated inside a removed gate block is still referenced from
+  code that survives the stripping
+- **THEN** the anonymous class is kept unchanged
+
+### Requirement: Synthetic lambda detection covers constructor-lambda naming
+
+Synthetic lambda methods SHALL be recognized by name `lambda$...` as well as any name containing
+`$lambda$` (kotlinc names lambdas nested in a constructor lambda `_init_$lambda$...`), so gated
+blocks inside constructor lambdas (e.g. `Spec({ spec { ... } })`) are stripped like any other.
+
+#### Scenario: Gate inside a constructor lambda
+- **WHEN** a `Gate.onlyIf` block sits inside a lambda passed to a super constructor (arete-ktx
+  `Spec({ spec { ... } })`) and the active flavour is not listed
+- **THEN** the gate span, all its synthetic lambda bodies (any nesting depth), and gate-local
+  instantiated classes are removed, and verification passes
+
+### Requirement: Orphan sweeps ignore self-references
+
+The reference check that decides whether a gate-local class or lambda may be removed SHALL ignore
+references from the candidate itself (e.g. its own field stores), so gate-local classes are
+actually removed.
+
+#### Scenario: Gate-local class with fields
+- **WHEN** a removed gate block instantiates a class whose own `<init>` stores fields on itself
+- **THEN** the class is still recognized as unreferenced and removed
+
+### Requirement: Kotlin metadata cleanup matches full nested-class names
+
+The `@kotlin.Metadata` rewrite SHALL remove `nestedClasses` entries of removed classes whether they
+are stored as simple names or as full internal names.
+
+#### Scenario: Removed nested class in metadata
+- **WHEN** a nested class is removed by gate stripping and the surviving outer class's
+  `@kotlin.Metadata` lists it
+- **THEN** the entry is removed from the metadata and metadata verification passes
